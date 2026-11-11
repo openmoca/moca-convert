@@ -109,12 +109,7 @@ The tests read moca-spec's examples and fixtures. Check out moca-spec beside
 this repository, or set `MOCA_SPEC_DIR`. CI uses the tags pinned at the top of `.github/workflows/test.yml`
 (`MOCA_SPEC_REF` and the like); check out the same tags to match it.
 
-Until `@openmoca/moca-core` is on npm, `package.json` depends on it as
-`file:../moca-reader-typescript`. Check that repository out beside this one
-too. Change the dependency to a version range before the first publish.
-
 ```sh
-(cd ../moca-reader-typescript && npm install)
 npm install
 npm test
 ```
@@ -123,8 +118,6 @@ npm test
 
 1. Publish `@openmoca/moca-core` first if it changed.
 2. Add a dated section to [CHANGELOG.md](CHANGELOG.md) and update the version.
-   Replace `file:../moca-reader-typescript` with the released `@openmoca/moca-core`
-   range, if it is still a path.
 3. Point the `MOCA_*_REF` pins in `.github/workflows/test.yml` at the release tags
    ([moca-spec docs/releasing.md](https://github.com/openmoca/moca-spec/blob/main/docs/releasing.md#moving-the-pins)).
 4. `npm test` passes.

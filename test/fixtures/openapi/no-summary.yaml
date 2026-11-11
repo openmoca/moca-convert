@@ -1,0 +1,11 @@
+openapi: 3.0.3
+info:
+  title: No Summary API
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      description: Returns all items. This operation has no "summary" field.
+      responses:
+        '200':
+          description: OK

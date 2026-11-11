@@ -1,0 +1,14 @@
+{
+  "kind": "playlist",
+  "id": "PLexample",
+  "url": "https://www.youtube.com/playlist?list=PLexample",
+  "title": "Kitchen \"Basics\"",
+  "description": "Three short kitchen lessons.",
+  "channel": "Example Channel",
+  "channel_url": "https://www.youtube.com/channel/UCexample",
+  "videos": [
+    "pl-video-03",
+    "pl-video-01",
+    "pl-video-02"
+  ]
+}

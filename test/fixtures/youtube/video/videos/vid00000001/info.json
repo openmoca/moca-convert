@@ -1,0 +1,27 @@
+{
+  "id": "vid00000001",
+  "title": "Brewing Tea: A *Short* Guide",
+  "description": "How to brew tea well.\n\n# Not a heading\n1. Not a list\nMore at https://example.com/tea_guide",
+  "channel": "Example Channel",
+  "channel_url": "https://www.youtube.com/channel/UCexample",
+  "upload_date": "20260102",
+  "duration": 30,
+  "webpage_url": "https://www.youtube.com/watch?v=vid00000001",
+  "license": null,
+  "chapters": [
+    {
+      "start": 0,
+      "end": 10,
+      "title": "<Untitled Chapter 1>"
+    },
+    {
+      "start": 10,
+      "end": 30,
+      "title": "Steeping & timing"
+    }
+  ],
+  "captions": {
+    "language": "en",
+    "automatic": true
+  }
+}

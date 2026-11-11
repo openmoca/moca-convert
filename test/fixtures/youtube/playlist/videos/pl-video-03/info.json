@@ -1,0 +1,16 @@
+{
+  "id": "pl-video-03",
+  "title": "Knife Skills",
+  "description": "Holding a knife safely.",
+  "channel": "Example Channel",
+  "channel_url": "https://www.youtube.com/channel/UCexample",
+  "upload_date": "20260102",
+  "duration": 20,
+  "webpage_url": "https://www.youtube.com/watch?v=pl-video-03",
+  "license": null,
+  "chapters": [],
+  "captions": {
+    "language": "en",
+    "automatic": true
+  }
+}

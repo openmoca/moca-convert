@@ -1,0 +1,35 @@
+openapi: 3.0.3
+info:
+  title: Tagged API
+  version: 1.0.0
+paths:
+  /widgets:
+    get:
+      tags: [Widgets]
+      summary: List widgets
+      description: Returns all widgets.
+      responses:
+        '200':
+          description: OK
+    post:
+      tags: [Widgets]
+      summary: Create widget
+      description: Creates a widget.
+      responses:
+        '201':
+          description: Created
+  /users:
+    get:
+      tags: [Users]
+      summary: List users
+      description: Returns all users.
+      responses:
+        '200':
+          description: OK
+  /health:
+    get:
+      summary: Health check
+      description: No tag on this operation.
+      responses:
+        '200':
+          description: OK

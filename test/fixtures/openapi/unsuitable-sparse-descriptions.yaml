@@ -1,0 +1,25 @@
+openapi: 3.0.3
+info:
+  title: Sparse API
+  version: 1.0.0
+paths:
+  /a:
+    get:
+      summary: Get A
+      description: The only documented operation.
+      responses:
+        '200':
+          description: OK
+    post:
+      responses:
+        '200':
+          description: OK
+  /b:
+    get:
+      responses:
+        '200':
+          description: OK
+    put:
+      responses:
+        '200':
+          description: OK

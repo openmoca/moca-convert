@@ -1,0 +1,44 @@
+{
+  "name": "@openmoca/moca-convert",
+  "version": "0.6.0",
+  "description": "Create MOCA packages (OKF content bundles) from Markdown folders, Obsidian vaults, OpenAPI documents, PDFs and YouTube videos.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "moca-convert": "./bin/moca-convert.js",
+    "moca-youtube": "./bin/moca-youtube.js"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@openmoca/moca-core": "file:../moca-reader-typescript",
+    "commander": "^12.1.0",
+    "js-yaml": "^5.2.2",
+    "pdfjs-dist": "^6.3.289"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/openmoca/moca-convert.git"
+  },
+  "homepage": "https://github.com/openmoca/moca-convert#readme",
+  "bugs": {
+    "url": "https://github.com/openmoca/moca-convert/issues"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "README.md"
+  ],
+  "exports": {
+    ".": "./lib/index.js",
+    "./lib/*": "./lib/*",
+    "./package.json": "./package.json"
+  }
+}

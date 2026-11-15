@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
@@ -57,6 +57,7 @@ test('a single video becomes one node, with its captions under media/ and its de
     ['How to brew tea well.', 't=0,10', 't=10,30'],
   );
   assert.equal(data.moca.concepts, undefined);
+  assert.deepEqual(data.moca.media, [{ source: 'video', type: 'text/html', duration: 30, transcript: 'captions' }]);
 
   const { result, cleanup } = await written(draft);
   try {
@@ -109,6 +110,34 @@ test('a playlist keeps its order in structure.ttl and index.md, and binds each n
     assert.ok(result.capabilities.includes('structured'));
   } finally {
     cleanup();
+  }
+});
+
+test('a video whose captions run past its duration ends its range at the last caption, not after it', async () => {
+  const dir = tempDir();
+  try {
+    const input = join(dir, 'capture');
+    cpSync(VIDEO, input, { recursive: true });
+    const video = join(input, 'videos', 'vid00000001');
+    const info = JSON.parse(readFileSync(join(video, 'info.json'), 'utf8'));
+    delete info.chapters;
+    info.duration = 20;
+    writeFileSync(join(video, 'info.json'), JSON.stringify(info));
+    const vtt = readFileSync(join(video, 'captions.vtt'), 'utf8').replace('00:00:15.000 --> 00:00:20.000', '00:00:15.000 --> 00:00:20.400');
+    writeFileSync(join(video, 'captions.vtt'), vtt);
+
+    const draft = convert({ inputPath: input, options: { id: 'https://example.com/test/tea', language: 'en' } });
+    const { data } = node(draft, 'content/brewing-tea-a-short-guide.md');
+    assert.deepEqual(data.moca.evidence.filter((e) => e.source === 'captions').map((e) => e.selector.value), ['t=0,20.4']);
+    assert.deepEqual(data.moca.media, [{ source: 'video', type: 'text/html', duration: 20, transcript: 'captions' }]);
+    const { result, cleanup } = await written(draft);
+    try {
+      assert.deepEqual(result.diagnostics.filter((d) => d.severity !== 'info'), []);
+    } finally {
+      cleanup();
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 });
 

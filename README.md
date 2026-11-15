@@ -89,7 +89,9 @@ moca-youtube <url> -o <dir> --id <uri> [--title text] [--version semver] [--type
   captions grouped by chapter. The captions are written under `media/` as
   WebVTT and the description under `sources/`, and the node cites each
   chapter as a time range (`t=start,end`) and quotes the description, so the
-  package is `self-contained-evidence`.
+  package is `self-contained-evidence`. The node describes the video in
+  `moca.media`: its page's type (`text/html`), its length and its captions, so
+  the last chapter can run past the last caption.
 - A playlist also gets `content/index.md` and a `structure.ttl` that keeps the
   videos in playlist order.
 - Captions the creator supplied in `--language` (default `en`) are preferred,
@@ -117,13 +119,16 @@ npm test
 ## Release
 
 1. Publish `@openmoca/moca-core` first if it changed.
-2. Add a dated section to [CHANGELOG.md](CHANGELOG.md) and update the version.
-3. Point the `MOCA_*_REF` pins in `.github/workflows/test.yml` at the release tags
+2. Name its released range in `package.json` in place of the `file:` path,
+   and run `npm install`.
+3. Add a dated section to [CHANGELOG.md](CHANGELOG.md) and update the version.
+4. Point the `MOCA_*_REF` pins in `.github/workflows/test.yml` at the release tags
    ([moca-spec docs/releasing.md](https://github.com/openmoca/moca-spec/blob/main/docs/releasing.md#moving-the-pins)).
-4. `npm test` passes.
-5. Tag `vX.Y.Z` and publish a GitHub release whose notes are the changelog
-   section.
-6. `npm publish --access public` from the tagged commit.
+5. `npm test` passes.
+6. Tag `vX.Y.Z` on main and publish a GitHub release whose notes are the
+   changelog section. The release workflow publishes to npm through trusted
+   publishing, with provenance; it stops if the tag is not on main, the
+   version does not match, or `@openmoca/moca-core` is not on npm.
 
 ## Licence
 

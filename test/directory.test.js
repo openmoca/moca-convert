@@ -23,7 +23,7 @@ test('converts a nested directory of Markdown files into content nodes at matchi
   assert.deepEqual(paths, ['content/guides/advanced.md', 'content/guides/setup.md', 'content/intro.md']);
   assert.deepEqual(draft.manifest, {
     $schema: 'https://w3id.org/moca/schemas/v1/manifest.schema.json',
-    mocaVersion: '0.6',
+    mocaVersion: '0.7',
     id: 'https://example.com/test/basic-nested',
     version: '1.0.0',
     title: 'Basic Nested',

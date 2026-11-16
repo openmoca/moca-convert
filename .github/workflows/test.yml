@@ -18,7 +18,8 @@ permissions:
 # The other MOCA repositories, at fixed refs: release tags, or commits while a Spec Change
 # Proposal is in flight; never a branch (moca-spec CONTRIBUTING.md).
 env:
-  MOCA_SPEC_REF: v0.6.0
+  MOCA_SPEC_REF: 35380b8f89825c0b12312417639be08d4cb5ce9b  # 0.7.0 release candidate; v0.7.0 once tagged
+  MOCA_READER_TYPESCRIPT_REF: a08da113ac3e80e4ab62c777dcab4b0cb58babe2  # 0.7.0 release candidate; v0.7.0 once tagged
 
 jobs:
   deps:
@@ -52,11 +53,20 @@ jobs:
       - uses: actions/checkout@v4
         with:
           path: moca-convert
+      # @openmoca/moca-core is linked from moca-reader-typescript until its 0.7.0 is on npm.
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/moca-reader-typescript
+          ref: ${{ env.MOCA_READER_TYPESCRIPT_REF }}
+          path: moca-reader-typescript
+          token: ${{ secrets.MOCA_REPOS_TOKEN || github.token }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: '*/package-lock.json'
+      - run: npm ci
+        working-directory: moca-reader-typescript
       - run: npm ci
         working-directory: moca-convert
       - run: npm test

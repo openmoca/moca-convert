@@ -1,0 +1,85 @@
+name: Release
+
+# Push a vX.Y.Z tag on a commit in main: publishes @openmoca/moca-convert to npm with provenance.
+# On a pull request to main, the same tests and `npm publish --dry-run` run, so the release path is proved
+# before release day; nothing is published. Until moca-core is on npm, the dry run links it from
+# moca-reader-typescript at the pinned commit, as the tests do.
+#
+# Trusted publishing: npm accepts this workflow, in the `release` environment, through a short-lived
+# OIDC token from GitHub Actions. There is no npm token in this repository.
+#
+# Tag this repository only once the @openmoca/moca-core version it names is on npm
+# (moca-reader-typescript is released first). The workflow checks, and stops if it is not.
+on:
+  push:
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  # Used by the dry run only, while the package links moca-core with file:. Move it with test.yml's pin.
+  MOCA_READER_TYPESCRIPT_REF: a08da113ac3e80e4ab62c777dcab4b0cb58babe2  # 0.7.0 release candidate; v0.7.0 once tagged
+
+jobs:
+  check:
+    name: Test and pack (dry run)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: moca-convert
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        if: github.event_name == 'pull_request'
+        with:
+          repository: ${{ github.repository_owner }}/moca-reader-typescript
+          ref: ${{ env.MOCA_READER_TYPESCRIPT_REF }}
+          path: moca-reader-typescript
+          token: ${{ secrets.MOCA_REPOS_TOKEN || github.token }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: The tag is on main, the version matches, and moca-core is on npm
+        if: github.event_name == 'push'
+        working-directory: moca-convert
+        run: |
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "::error::$GITHUB_REF_NAME is not on main"; exit 1; }
+          version=$(node -p "require('./package.json').version")
+          [ "v$version" = "$GITHUB_REF_NAME" ] || { echo "::error::the package is $version, the tag is $GITHUB_REF_NAME"; exit 1; }
+          core=$(node -p "require('./package.json').dependencies['@openmoca/moca-core']")
+          case "$core" in
+            file:*) echo "::error::@openmoca/moca-core is still linked as $core; name the released range"; exit 1 ;;
+            *) [ -n "$(npm view "@openmoca/moca-core@$core" version)" ] || { echo "::error::@openmoca/moca-core@$core is not on npm yet"; exit 1; } ;;
+          esac
+      - run: npm ci
+        if: github.event_name == 'pull_request'
+        working-directory: moca-reader-typescript
+      - run: npm ci
+        working-directory: moca-convert
+      - run: npm test
+        working-directory: moca-convert
+      - run: npm publish --dry-run --access public
+        working-directory: moca-convert
+
+  publish:
+    name: Publish to npm
+    needs: check
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      # Trusted publishing needs npm 11.5.1 or later.
+      - run: npm install -g npm@^11.5.1
+      - run: npm ci
+      - run: npm publish --access public

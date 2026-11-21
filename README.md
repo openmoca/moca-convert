@@ -29,6 +29,11 @@ moca-convert <input> -o <dir> --id <uri> [--title text] [--version semver] [--ty
   deleted notes) and symbolic links in an input folder are not read.
 - Obsidian wikilinks are rewritten in the note's body only, never in its
   front matter, and each link target is percent-encoded.
+- OpenAPI: each operation's parameters include its path's and those it
+  references (`$ref`). Schema references are expanded up to 1,000 objects a
+  schema; beyond that they are shown as `{"$ref": ...}`. Two operations whose
+  paths give the same file name get distinct files (`get-a-b.md`,
+  `get-a-b-2.md`).
 - Output is written to a folder beside `-o`, read back with the reference
   Reader, and only then moved into place. If it would be invalid, nothing is
   written.

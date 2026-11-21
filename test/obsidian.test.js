@@ -42,7 +42,7 @@ test('a wikilink resolves via an alias to a relative Markdown link', () => {
     options: { id: 'https://example.com/test/vault-basic', title: 'Vault Basic' },
   });
   const reference = node(draft, 'Reference.md');
-  assert.match(reference.body, /\[Getting Started\]\(<\.\/Setup Guide\.md>\)/);
+  assert.match(reference.body, /\[Getting Started\]\(\.\/Setup%20Guide\.md\)/);
 });
 
 test('a wikilink with a #heading anchor resolves and appends a slugified anchor', () => {
@@ -51,7 +51,7 @@ test('a wikilink with a #heading anchor resolves and appends a slugified anchor'
     options: { id: 'https://example.com/test/vault-basic', title: 'Vault Basic' },
   });
   const reference = node(draft, 'Reference.md');
-  assert.match(reference.body, /\[Setup Guide\]\(<\.\/Setup Guide\.md#installation>\)/);
+  assert.match(reference.body, /\[Setup Guide\]\(\.\/Setup%20Guide\.md#installation\)/);
 });
 
 test('a wikilink with a |displayText alias renders that text as the link label', () => {
@@ -60,14 +60,12 @@ test('a wikilink with a |displayText alias renders that text as the link label',
     options: { id: 'https://example.com/test/vault-basic', title: 'Vault Basic' },
   });
   const intro = node(draft, 'Introduction.md');
-  assert.match(intro.body, /\[Get Started Here\]\(<\.\/Setup Guide\.md>\)/);
+  assert.match(intro.body, /\[Get Started Here\]\(\.\/Setup%20Guide\.md\)/);
 });
 
-test('a link destination containing a space is wrapped in angle brackets so it stays valid CommonMark', () => {
-  // "Setup Guide.md" (used by every fixture above) already exercises this,
-  // but assert the underlying rule directly and by contrast: a destination
-  // with no space is never wrapped, so the escaping is applied only when
-  // actually needed.
+test('a link destination containing a space is percent-encoded so it stays one CommonMark link', () => {
+  // "Setup Guide.md" (used by every fixture above) already exercises this;
+  // assert the rule directly: a raw space never appears in a destination.
   const draft = convert({
     inputPath: join(fixturesDir, 'vault-basic'),
     options: { id: 'https://example.com/test/vault-basic', title: 'Vault Basic' },
@@ -161,5 +159,31 @@ test('end-to-end: converted output passes moca-lint with zero error-severity fin
     );
   } finally {
     rmSync(outDir, { recursive: true, force: true });
+  }
+});
+
+test('hidden folders such as .trash/ are not read, wikilinks in front matter are left alone, and every target is percent-encoded', async () => {
+  const { cpSync, writeFileSync } = await import('node:fs');
+  const vault = mkdtempSync(join(tmpdir(), 'moca-vault-'));
+  try {
+    cpSync(join(fixturesDir, 'vault-basic'), vault, { recursive: true });
+    mkdirSync(join(vault, '.trash'));
+    writeFileSync(join(vault, '.trash', 'Deleted.md'), '# Deleted\n');
+    mkdirSync(join(vault, '.git'));
+    writeFileSync(join(vault, '.git', 'note.md'), '# Not a note\n');
+    writeFileSync(join(vault, 'notes', 'Odd (y & z.md'), '# Odd\n');
+    writeFileSync(join(vault, 'notes', 'Linker.md'), '---\nrelated: "[[Setup Guide]]"\n---\n# Linker\n\nSee [[Odd (y & z]] and [[Setup Guide]].\n');
+    const draft = convert({ inputPath: vault, options: { id: 'https://example.com/test/vault', title: 'Vault' } });
+    assert.ok(draft.contentNodes.every((n) => !/\/\./.test(n.path)), draft.contentNodes.map((n) => n.path).join(', '));
+    const linker = draft.contentNodes.find((n) => n.path.endsWith('Linker.md')).body;
+    assert.match(linker, /related: "\[\[Setup Guide\]\]"/);
+    assert.match(linker, /\[Setup Guide\]\(\.\/Setup%20Guide\.md\)/);
+    assert.match(linker, /\[Odd \(y & z\]\(\.\/Odd%20%28y%20%26%20z\.md\)/);
+    const out = join(mkdtempSync(join(tmpdir(), 'moca-vault-out-')), 'pkg');
+    await writeDraft({ draft, outDir: out });
+    const pkg = await readPackage(out);
+    assert.deepEqual(pkg.diagnostics.filter((d) => d.severity !== 'info'), []);
+  } finally {
+    rmSync(vault, { recursive: true, force: true });
   }
 });

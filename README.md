@@ -25,6 +25,10 @@ moca-convert <input> -o <dir> --id <uri> [--title text] [--version semver] [--ty
   `type` (and `title`, if missing) added at the top of its frontmatter.
 - The adapter is detected from the input unless `--from` is given; ambiguous
   input is refused, not guessed.
+- Hidden files and folders (`.git/`, `.obsidian/`, Obsidian's `.trash/` of
+  deleted notes) and symbolic links in an input folder are not read.
+- Obsidian wikilinks are rewritten in the note's body only, never in its
+  front matter, and each link target is percent-encoded.
 - Output is written to a folder beside `-o`, read back with the reference
   Reader, and only then moved into place. If it would be invalid, nothing is
   written.

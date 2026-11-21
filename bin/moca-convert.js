@@ -12,7 +12,17 @@ const ADAPTER_ONLY_FLAGS = {
   minDescriptionRatio: 'openapi',
   chunker: 'openapi',
   sources: 'pdf',
+  maxPdfMb: 'pdf',
+  maxPdfPages: 'pdf',
+  pdfTimeout: 'pdf',
 };
+
+function parsePositive(value) {
+  if (!/^[0-9]+$/.test(value) || Number(value) < 1 || !Number.isSafeInteger(Number(value))) {
+    throw new InvalidArgumentError('must be a positive whole number.');
+  }
+  return Number(value);
+}
 
 function parseRatio(value) {
   const num = Number(value);
@@ -48,6 +58,9 @@ program
   .option('--min-description-ratio <ratio>', 'openapi only: minimum fraction of operations needing a summary/description, 0-1 (default 0.5)', parseRatio)
   .option('--chunker <mode>', 'openapi only: operation|tag content-node grouping (default operation)')
   .option('--sources <mode>', 'pdf only: copy the PDFs into sources/ (copy, the default) or cite each by its pdfs.json url (link)')
+  .option('--max-pdf-mb <n>', 'pdf only: the largest PDF to read, in MB (default 256)', parsePositive)
+  .option('--max-pdf-pages <n>', 'pdf only: the most pages a PDF may have (default 2000)', parsePositive)
+  .option('--pdf-timeout <seconds>', 'pdf only: the longest one PDF may take to read (default 600)', parsePositive)
   .option('--no-structure', 'directory only: do not write structure.ttl from the folders, or bind nodes to it')
   .option('--force', 'replace the output directory when it holds a previous package', false)
   .option('--strict', 'escalate warning-level output-validation findings to errors', false)
@@ -119,6 +132,9 @@ async function run(input, options) {
         minDescriptionRatio: options.minDescriptionRatio,
         chunker: options.chunker,
         sources: options.sources,
+        ...(options.maxPdfMb ? { maxPdfBytes: options.maxPdfMb * 1024 * 1024 } : {}),
+        ...(options.maxPdfPages ? { maxPdfPages: options.maxPdfPages } : {}),
+        ...(options.pdfTimeout ? { pdfTimeoutMs: options.pdfTimeout * 1000 } : {}),
         structure: options.structure,
         type: options.type,
         language: options.language,

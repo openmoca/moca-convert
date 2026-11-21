@@ -4,10 +4,10 @@
 
 /**
  * @param {Array<Array<{ text: string, size?: number, bold?: boolean, x?: number, y: number }>>} pages
- * @param {{ title?: string }} [options]
+ * @param {{ title?: string, labelPrefix?: string }} [options]  labelPrefix: page labels, prefix then 1, 2, 3...
  * @returns {Buffer}
  */
-export function makePdf(pages, { title } = {}) {
+export function makePdf(pages, { title, labelPrefix } = {}) {
   const objects = [];
   const add = (body) => objects.push(body) && objects.length;
   const catalog = add('');
@@ -21,7 +21,8 @@ export function makePdf(pages, { title } = {}) {
     const contents = add(`<< /Length ${Buffer.byteLength(stream, 'latin1')} >>\nstream\n${stream}\nendstream`);
     return add(`<< /Type /Page /Parent ${pagesObj} 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${regular} 0 R /F2 ${bold} 0 R >> >> /Contents ${contents} 0 R >>`);
   });
-  objects[catalog - 1] = `<< /Type /Catalog /Pages ${pagesObj} 0 R >>`;
+  const labels = labelPrefix !== undefined ? ` /PageLabels << /Nums [0 << /S /D /P (${escape(labelPrefix)}) >>] >>` : '';
+  objects[catalog - 1] = `<< /Type /Catalog /Pages ${pagesObj} 0 R${labels} >>`;
   objects[pagesObj - 1] = `<< /Type /Pages /Kids [${kids.map((k) => `${k} 0 R`).join(' ')}] /Count ${kids.length} >>`;
   const info = title ? add(`<< /Title (${escape(title)}) >>`) : null;
 

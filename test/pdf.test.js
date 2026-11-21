@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { readPackage, splitFrontmatter } from '@openmoca/moca-core';
@@ -305,6 +305,92 @@ test('a PDF with no text layer is reported and left out', async () => {
     const draft = await convert({ inputPath: join(dir, 'in'), options: { id: ID, title: 'Mixed' } });
     assert.deepEqual(draft.warnings.map((w) => [w.code, w.file]), [['PDF_NO_TEXT', 'scan.pdf']]);
     assert.ok(draft.contentNodes.some((n) => n.path === 'content/wheel-nuts.md'));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a PDF\'s own page labels are cleaned and shown as text, never as Markdown or HTML', async () => {
+  const dir = tempDir();
+  try {
+    writeFileSync(join(dir, 'ch.pdf'), makePdf(CHAPTER, { labelPrefix: '<img src=x>](javascript:x)\n# ' }));
+    const draft = await convert({ inputPath: join(dir, 'ch.pdf'), options: { id: ID } });
+    for (const n of draft.contentNodes) {
+      // The Markdown body shows the label as text: every character that would start HTML or a link is escaped.
+      const { body: content } = splitFrontmatter(n.body);
+      assert.doesNotMatch(content, /(?<!\\)<img/, n.path);
+      assert.doesNotMatch(content, /(?<!\\)\]\(javascript:/, n.path);
+    }
+    const first = draft.contentNodes.find((n) => n.path !== 'content/index.md');
+    const { data } = splitFrontmatter(first.body);
+    // Control characters are gone and the label is cut short; the note is plain text in YAML.
+    assert.ok(data.moca.evidence.every((e) => !e.note || (!/[\n\r]/.test(e.note) && e.note.length <= 35)));
+    const { result, cleanup } = await written(draft);
+    try {
+      assert.deepEqual(result.diagnostics.filter((d) => d.severity === 'error'), []);
+    } finally {
+      cleanup();
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('pdfs.json urls are parsed and rebuilt: http and https only, with no user name, no fragment', async () => {
+  for (const [url, ok] of [
+    ['javascript:alert(1)', false],
+    ['file:///etc/passwd', false],
+    ['https://user:pw@example.com/a.pdf', false],
+    ['https://example.com/a.pdf#page=3', false],
+    ['https://example.com/a b.pdf', false],
+    ['https://example.com/a">.pdf', true],
+  ]) {
+    const dir = corpus();
+    try {
+      const spec = JSON.parse(readFileSync(join(dir, 'pdfs.json'), 'utf8'));
+      spec.documents[0].url = url;
+      writeFileSync(join(dir, 'pdfs.json'), JSON.stringify(spec));
+      if (!ok) {
+        await assert.rejects(convert({ inputPath: dir, options: { id: ID, sources: 'link' } }), UsageError, url);
+        continue;
+      }
+      const draft = await convert({ inputPath: dir, options: { id: ID, sources: 'link' } });
+      const all = draft.contentNodes.map((n) => n.body).join('\n');
+      assert.doesNotMatch(all, /a">\.pdf/);
+      assert.match(all, /a%22%3E\.pdf/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+});
+
+test('a pdfs.json entry that is a symbolic link, or leads outside the folder, is refused', { skip: process.platform === 'win32' ? 'symbolic links need privileges' : false }, async () => {
+  const dir = corpus({ pin: false });
+  const outside = tempDir();
+  try {
+    writeFileSync(join(outside, 'elsewhere.pdf'), makePdf(APPENDIX));
+    rmSync(join(dir, 'ch7.pdf'));
+    symlinkSync(join(outside, 'elsewhere.pdf'), join(dir, 'ch7.pdf'));
+    await assert.rejects(convert({ inputPath: dir, options: { id: ID } }), /not a regular file/);
+    rmSync(join(dir, 'ch7.pdf'));
+    symlinkSync(outside, join(dir, 'linked'));
+    const spec = JSON.parse(readFileSync(join(dir, 'pdfs.json'), 'utf8'));
+    spec.documents[0].file = 'linked/elsewhere.pdf';
+    writeFileSync(join(dir, 'pdfs.json'), JSON.stringify(spec));
+    await assert.rejects(convert({ inputPath: dir, options: { id: ID } }), /outside/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+    rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test('a PDF over the size or page limit is refused, with the flag that raises it', async () => {
+  const dir = tempDir();
+  try {
+    writeFileSync(join(dir, 'ch.pdf'), makePdf(CHAPTER));
+    await assert.rejects(convert({ inputPath: join(dir, 'ch.pdf'), options: { id: ID, maxPdfBytes: 100 } }), /over the 0 MB limit. Raise it with --max-pdf-mb/);
+    await assert.rejects(convert({ inputPath: join(dir, 'ch.pdf'), options: { id: ID, maxPdfPages: 2 } }), /3 pages, over the 2-page limit/);
+    await assert.rejects(convert({ inputPath: join(dir, 'ch.pdf'), options: { id: ID, pdfTimeoutMs: 0 } }), /took longer than/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

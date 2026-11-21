@@ -8,7 +8,7 @@ concept document with a `type`, and the package id must be an absolute URI.
 moca-convert <input> -o <dir> --id <uri> [--title text] [--version semver] [--type type]
              [--language bcp47] [--license spdx] [--from directory|markdown|obsidian|openapi|pdf|youtube]
              [--exclude glob...] [--chunker operation|tag] [--min-description-ratio 0-1]
-             [--sources copy|link]
+             [--sources copy|link] [--max-pdf-mb n] [--max-pdf-pages n] [--pdf-timeout seconds]
              [--force] [--strict] [--format text|json] [--log-file file]
 ```
 
@@ -57,6 +57,12 @@ PDFs with a text layer become one node per section:
   its `url` instead, for PDFs too large to carry.
 - A PDF without a text layer (a scan) is reported and left out; run OCR on
   it first.
+- A PDF over 256 MB or 2,000 pages, or that takes over 10 minutes to read, is
+  refused; `--max-pdf-mb`, `--max-pdf-pages` and `--pdf-timeout` raise the
+  limits.
+- Text from the PDF itself (headings, paragraphs, page labels) is written as
+  text: characters Markdown would read as links or HTML are escaped. Page
+  labels are kept short and on one line.
 
 A folder may list its documents, in order, in `pdfs.json`:
 
@@ -70,8 +76,10 @@ A folder may list its documents, in order, in `pdfs.json`:
 }
 ```
 
-Only `file` is required. `title` falls back to the PDF's own title, `url` is
-the published copy that `--sources link` cites, and a file whose SHA-256 is
+Only `file` is required: a regular file inside the folder, not a symbolic
+link. `title` falls back to the PDF's own title. `url` is the published copy
+that `--sources link` cites: an `http` or `https` URL with no user name,
+password or `#fragment`, parsed and written back in its normal form. A file whose SHA-256 is
 not `sha256` is refused, so a conversion never silently uses a changed
 document. Without `pdfs.json`, every PDF in the folder is converted in path
 order. moca-spec's [`scripts/fetch-pdfs.mjs`](https://github.com/openmoca/moca-spec/blob/main/scripts/fetch-pdfs.mjs) downloads the
@@ -108,6 +116,15 @@ moca-youtube <url> -o <dir> --id <uri> [--title text] [--version semver] [--type
   capture goes to a temporary directory.
 - yt-dlp is run directly, without a shell, so this works on macOS, Linux and
   Windows. Point at it with `--yt-dlp` or `$YT_DLP` when it is not on `PATH`.
+  It runs with `--ignore-config`, so your yt-dlp configuration files are not
+  used, and each run is stopped after 5 minutes.
+- The URL must be on `youtube.com` (with `www.`, `m.` or `music.`) or
+  `youtu.be`. Video and playlist ids must be plain ids (letters, digits, `-`
+  and `_`); an entry with any other id is skipped and reported.
+- When a capture is converted, it is checked as it is read: video ids, URLs
+  (parsed and rebuilt; `http` and `https` only), the upload date and the
+  caption language. A value that fails is left out, or the capture is
+  refused.
 
 See [`examples/youtube`](https://github.com/openmoca/moca-spec/blob/main/examples/youtube).
 

@@ -9,7 +9,7 @@ moca-convert <input> -o <dir> --id <uri> [--title text] [--version semver] [--ty
              [--language bcp47] [--license spdx] [--from directory|markdown|obsidian|openapi|pdf|youtube]
              [--exclude glob...] [--chunker operation|tag] [--min-description-ratio 0-1]
              [--sources copy|link]
-             [--force] [--strict] [--format text|json]
+             [--force] [--strict] [--format text|json] [--log-file file]
 ```
 
 | Adapter | Input | Default `type` |
@@ -25,8 +25,14 @@ moca-convert <input> -o <dir> --id <uri> [--title text] [--version semver] [--ty
   `type` (and `title`, if missing) added at the top of its frontmatter.
 - The adapter is detected from the input unless `--from` is given; ambiguous
   input is refused, not guessed.
-- Output is read back with the reference Reader before anything is left on
-  disk. If it would be invalid, nothing is written.
+- Output is written to a folder beside `-o`, read back with the reference
+  Reader, and only then moved into place. If it would be invalid, nothing is
+  written.
+- `--force` replaces an output folder only when it holds a previous package
+  (it has a `moca.json`); it refuses any other folder. The previous package is
+  moved aside, the new one moved in, and only then is the old one deleted.
+- `--log-file <file>` records the adapter, timings and any failure, on every
+  exit.
 
 ## PDF
 

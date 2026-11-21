@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
@@ -149,5 +149,30 @@ test('end-to-end: converted output passes moca-lint with zero error-severity fin
     assert.deepEqual(errors, []);
   } finally {
     rmSync(outDir, { recursive: true, force: true });
+  }
+});
+
+test('file and folder names with spaces and other characters are percent-encoded in structure.ttl, and the package reads clean', async () => {
+  const input = mkdtempSync(join(tmpdir(), 'moca-dir-names-'));
+  const out = mkdtempSync(join(tmpdir(), 'moca-dir-names-out-'));
+  try {
+    mkdirSync(join(input, 'my notes'));
+    writeFileSync(join(input, 'my notes', 'first note.md'), '# First note\n\nText.\n');
+    writeFileSync(join(input, 'q&a #1 {x}.md'), '# Q and A\n\nText.\n');
+    const draft = convert({ inputPath: input, options: { id: 'https://example.com/test/names', title: 'Names' } });
+    const ttl = draft.files.find((f) => f.path === 'structure.ttl').body;
+    assert.match(ttl, /<https:\/\/example\.com\/test\/names#my%20notes\/first%20note> a skos:Concept/);
+    assert.match(ttl, /<https:\/\/example\.com\/test\/names#q%26a%20%231%20%7Bx%7D> a skos:Concept/);
+    for (const iri of ttl.match(/<[^>]*>/g)) assert.doesNotMatch(iri.slice(1, -1), /[\s<>"{}|\\^`]/, iri);
+    const bound = draft.contentNodes.find((n) => n.path === 'content/my notes/first note.md').body;
+    assert.match(bound, /iri: https:\/\/example\.com\/test\/names#my%20notes\/first%20note\n/);
+
+    await writeDraft({ draft, outDir: join(out, 'pkg') });
+    const pkg = await readPackage(join(out, 'pkg'));
+    assert.deepEqual(pkg.diagnostics.filter((d) => d.severity !== 'info'), []);
+    assert.ok(pkg.capabilities.includes('structured'));
+  } finally {
+    rmSync(input, { recursive: true, force: true });
+    rmSync(out, { recursive: true, force: true });
   }
 });

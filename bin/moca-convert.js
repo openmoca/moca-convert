@@ -12,7 +12,17 @@ const ADAPTER_ONLY_FLAGS = {
   minDescriptionRatio: 'openapi',
   chunker: 'openapi',
   sources: 'pdf',
+  maxPdfMb: 'pdf',
+  maxPdfPages: 'pdf',
+  pdfTimeout: 'pdf',
 };
+
+function parsePositive(value) {
+  if (!/^[0-9]+$/.test(value) || Number(value) < 1 || !Number.isSafeInteger(Number(value))) {
+    throw new InvalidArgumentError('must be a positive whole number.');
+  }
+  return Number(value);
+}
 
 function parseRatio(value) {
   const num = Number(value);
@@ -48,8 +58,11 @@ program
   .option('--min-description-ratio <ratio>', 'openapi only: minimum fraction of operations needing a summary/description, 0-1 (default 0.5)', parseRatio)
   .option('--chunker <mode>', 'openapi only: operation|tag content-node grouping (default operation)')
   .option('--sources <mode>', 'pdf only: copy the PDFs into sources/ (copy, the default) or cite each by its pdfs.json url (link)')
+  .option('--max-pdf-mb <n>', 'pdf only: the largest PDF to read, in MB (default 256)', parsePositive)
+  .option('--max-pdf-pages <n>', 'pdf only: the most pages a PDF may have (default 2000)', parsePositive)
+  .option('--pdf-timeout <seconds>', 'pdf only: the longest one PDF may take to read (default 600)', parsePositive)
   .option('--no-structure', 'directory only: do not write structure.ttl from the folders, or bind nodes to it')
-  .option('--force', 'allow writing into a non-empty output directory', false)
+  .option('--force', 'replace the output directory when it holds a previous package', false)
   .option('--strict', 'escalate warning-level output-validation findings to errors', false)
   .option('--format <fmt>', 'summary output format: text|json', 'text')
   .option('--report <file>', 'write the formatted summary to a file (in addition to console output)')
@@ -59,6 +72,8 @@ program
   .option('--no-color', 'disable colored output')
   .action(async (input, options) => {
     await run(input, options);
+    // The log file is written by now; exit even if a library left a handle open.
+    process.exit(process.exitCode ?? 0);
   });
 
 // Commander's own usage errors (missing required options, unknown flags,
@@ -104,6 +119,8 @@ async function run(input, options) {
     const adapterName = resolveAdapterName(target, options.from);
     assertAdapterSpecificFlags(adapterName, options);
     const adapter = getAdapter(adapterName);
+    logger.log(`adapter ${adapterName}`);
+    const started = performance.now();
 
     const draft = await adapter.convert({
       inputPath: input,
@@ -115,6 +132,9 @@ async function run(input, options) {
         minDescriptionRatio: options.minDescriptionRatio,
         chunker: options.chunker,
         sources: options.sources,
+        ...(options.maxPdfMb ? { maxPdfBytes: options.maxPdfMb * 1024 * 1024 } : {}),
+        ...(options.maxPdfPages ? { maxPdfPages: options.maxPdfPages } : {}),
+        ...(options.pdfTimeout ? { pdfTimeoutMs: options.pdfTimeout * 1000 } : {}),
         structure: options.structure,
         type: options.type,
         language: options.language,
@@ -122,6 +142,7 @@ async function run(input, options) {
       },
     });
 
+    logger.log(`converted ${draft.contentNodes.length} content node(s) in ${Math.round(performance.now() - started)} ms`);
     const { findings, digest } = await writeDraft({
       draft,
       outDir: options.output,
@@ -130,6 +151,7 @@ async function run(input, options) {
       onLog: logger.log,
     });
 
+    logger.log(`wrote ${options.output} in ${Math.round(performance.now() - started)} ms in all`);
     if (!options.quiet) {
       console.log(`Wrote ${options.output} (${draft.contentNodes.length} content node(s), ${draft.warnings.length} warning(s))\n${digest}`);
     }
@@ -139,18 +161,24 @@ async function run(input, options) {
     if (findings.length > 0) {
       writeReport(options, formatFindings(findings, options.format));
     }
-    process.exit(0);
+    process.exitCode = 0;
   } catch (err) {
+    // Set the exit code and return, so the finally block below writes the log
+    // file on every path.
     if (err instanceof UsageError) {
       console.error(`moca-convert: ${err.message}`);
-      process.exit(2);
+      process.exitCode = 2;
+      return;
     }
     if (err instanceof ConversionFailedError) {
       console.error(`moca-convert: ${err.message}`);
       writeReport(options, formatFindings(err.findings, options.format));
-      process.exit(1);
+      process.exitCode = 1;
+      return;
     }
-    throw err;
+    logger.log(`failed: ${err?.stack ?? err}`);
+    console.error(`moca-convert: failed: ${err?.message ?? err}`);
+    process.exitCode = 1;
   } finally {
     logger.flush();
   }

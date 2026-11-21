@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
@@ -136,6 +136,24 @@ test('CLI: nonexistent input exits 2', () => {
   try {
     const result = runCli(['/no/such/path', '-o', outDir, '--id', 'https://example.com/x', '--title', 'X']);
     assert.equal(result.status, 2);
+  } finally {
+    cleanup(outDir);
+  }
+});
+
+test('CLI: --log-file is written on success and on a usage error', () => {
+  const outDir = tempOutDir();
+  const log = join(dirname(outDir), 'trace.log');
+  const failLog = join(dirname(outDir), 'fail.log');
+  try {
+    const ok = runCli([join(fixturesDir, 'directory', 'basic-nested'), '-o', outDir, '--id', 'https://example.com/test/cli-log', '--title', 'Log', '--log-file', log]);
+    assert.equal(ok.status, 0, ok.stderr);
+    const text = readFileSync(log, 'utf8');
+    assert.match(text, /adapter directory/);
+    assert.match(text, /wrote .* in \d+ ms in all/);
+    const bad = runCli([join(fixturesDir, 'directory', 'basic-nested'), '-o', outDir, '--id', 'https://example.com/test/cli-log', '--title', 'Log', '--log-file', failLog]);
+    assert.equal(bad.status, 2);
+    assert.ok(existsSync(failLog));
   } finally {
     cleanup(outDir);
   }

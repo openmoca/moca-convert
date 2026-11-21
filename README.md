@@ -8,8 +8,8 @@ concept document with a `type`, and the package id must be an absolute URI.
 moca-convert <input> -o <dir> --id <uri> [--title text] [--version semver] [--type type]
              [--language bcp47] [--license spdx] [--from directory|markdown|obsidian|openapi|pdf|youtube]
              [--exclude glob...] [--chunker operation|tag] [--min-description-ratio 0-1]
-             [--sources copy|link]
-             [--force] [--strict] [--format text|json]
+             [--sources copy|link] [--max-pdf-mb n] [--max-pdf-pages n] [--pdf-timeout seconds]
+             [--force] [--strict] [--format text|json] [--log-file file]
 ```
 
 | Adapter | Input | Default `type` |
@@ -25,8 +25,23 @@ moca-convert <input> -o <dir> --id <uri> [--title text] [--version semver] [--ty
   `type` (and `title`, if missing) added at the top of its frontmatter.
 - The adapter is detected from the input unless `--from` is given; ambiguous
   input is refused, not guessed.
-- Output is read back with the reference Reader before anything is left on
-  disk. If it would be invalid, nothing is written.
+- Hidden files and folders (`.git/`, `.obsidian/`, Obsidian's `.trash/` of
+  deleted notes) and symbolic links in an input folder are not read.
+- Obsidian wikilinks are rewritten in the note's body only, never in its
+  front matter, and each link target is percent-encoded.
+- OpenAPI: each operation's parameters include its path's and those it
+  references (`$ref`). Schema references are expanded up to 1,000 objects a
+  schema; beyond that they are shown as `{"$ref": ...}`. Two operations whose
+  paths give the same file name get distinct files (`get-a-b.md`,
+  `get-a-b-2.md`).
+- Output is written to a folder beside `-o`, read back with the reference
+  Reader, and only then moved into place. If it would be invalid, nothing is
+  written.
+- `--force` replaces an output folder only when it holds a previous package
+  (it has a `moca.json`); it refuses any other folder. The previous package is
+  moved aside, the new one moved in, and only then is the old one deleted.
+- `--log-file <file>` records the adapter, timings and any failure, on every
+  exit.
 
 ## PDF
 
@@ -51,6 +66,12 @@ PDFs with a text layer become one node per section:
   its `url` instead, for PDFs too large to carry.
 - A PDF without a text layer (a scan) is reported and left out; run OCR on
   it first.
+- A PDF over 256 MB or 2,000 pages, or that takes over 10 minutes to read, is
+  refused; `--max-pdf-mb`, `--max-pdf-pages` and `--pdf-timeout` raise the
+  limits.
+- Text from the PDF itself (headings, paragraphs, page labels) is written as
+  text: characters Markdown would read as links or HTML are escaped. Page
+  labels are kept short and on one line.
 
 A folder may list its documents, in order, in `pdfs.json`:
 
@@ -64,8 +85,10 @@ A folder may list its documents, in order, in `pdfs.json`:
 }
 ```
 
-Only `file` is required. `title` falls back to the PDF's own title, `url` is
-the published copy that `--sources link` cites, and a file whose SHA-256 is
+Only `file` is required: a regular file inside the folder, not a symbolic
+link. `title` falls back to the PDF's own title. `url` is the published copy
+that `--sources link` cites: an `http` or `https` URL with no user name,
+password or `#fragment`, parsed and written back in its normal form. A file whose SHA-256 is
 not `sha256` is refused, so a conversion never silently uses a changed
 document. Without `pdfs.json`, every PDF in the folder is converted in path
 order. moca-spec's [`scripts/fetch-pdfs.mjs`](https://github.com/openmoca/moca-spec/blob/main/scripts/fetch-pdfs.mjs) downloads the
@@ -102,6 +125,15 @@ moca-youtube <url> -o <dir> --id <uri> [--title text] [--version semver] [--type
   capture goes to a temporary directory.
 - yt-dlp is run directly, without a shell, so this works on macOS, Linux and
   Windows. Point at it with `--yt-dlp` or `$YT_DLP` when it is not on `PATH`.
+  It runs with `--ignore-config`, so your yt-dlp configuration files are not
+  used, and each run is stopped after 5 minutes.
+- The URL must be on `youtube.com` (with `www.`, `m.` or `music.`) or
+  `youtu.be`. Video and playlist ids must be plain ids (letters, digits, `-`
+  and `_`); an entry with any other id is skipped and reported.
+- When a capture is converted, it is checked as it is read: video ids, URLs
+  (parsed and rebuilt; `http` and `https` only), the upload date and the
+  caption language. A value that fails is left out, or the capture is
+  refused.
 
 See [`examples/youtube`](https://github.com/openmoca/moca-spec/blob/main/examples/youtube).
 
@@ -129,6 +161,27 @@ npm test
    changelog section. The release workflow publishes to npm through trusted
    publishing, with provenance; it stops if the tag is not on main, the
    version does not match, or `@openmoca/moca-core` is not on npm.
+
+## Standards
+
+What moca-convert reads and writes, and how strongly. **Follow** means it
+implements the standard and the tests check it where they can.
+
+| Standard | Where | How strongly |
+| --- | --- | --- |
+| MOCA ([moca-spec](https://github.com/openmoca/moca-spec)) 0.7 | every package it writes, checked with the reference Reader | follow |
+| [Open Knowledge Format](https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/ad30107c31c06aec8a7d5636e0d1058118604e6f/SPEC.md) v0.2, pinned at commit `ad30107` | `content/`: each node an OKF concept document with a `type` | follow (pinned) |
+| [CommonMark](https://spec.commonmark.org/) | node bodies; text from input is escaped, link destinations percent-encoded | follow |
+| [YAML 1.2](https://yaml.org/spec/1.2.2/) | front matter, and OpenAPI documents in YAML | follow |
+| [SKOS](https://www.w3.org/TR/skos-reference/) and [Dublin Core terms](https://www.dublincore.org/specifications/dublin-core/dcmi-terms/) in [RDF 1.1 Turtle](https://www.w3.org/TR/turtle/) | `structure.ttl`; IRIs percent-encoded ([RFC 3987](https://www.rfc-editor.org/rfc/rfc3987)) | follow (the named terms) |
+| [RFC 3778](https://www.rfc-editor.org/rfc/rfc3778) `page=` fragments | PDF evidence | follow |
+| [Media Fragments](https://www.w3.org/TR/media-frags/) `t=` | YouTube evidence | follow |
+| [WebVTT](https://www.w3.org/TR/webvtt1/) | YouTube captions under `media/` | follow |
+| [OpenAPI 3.x](https://spec.openapis.org/oas/v3.1.0) | the `openapi` adapter's input; local `$ref` only | follow (the parts it reads) |
+| [WHATWG URL](https://url.spec.whatwg.org/) | URLs from input, parsed and rebuilt; `http` and `https` only | follow |
+| [BCP 47](https://www.rfc-editor.org/info/bcp47) | `--language`, and caption languages | follow |
+
+Built with the help of AI assistants; every change is reviewed and accepted by the maintainer.
 
 ## Licence
 

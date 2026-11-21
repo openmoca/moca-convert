@@ -162,6 +162,27 @@ npm test
    publishing, with provenance; it stops if the tag is not on main, the
    version does not match, or `@openmoca/moca-core` is not on npm.
 
+## Standards
+
+What moca-convert reads and writes, and how strongly. **Follow** means it
+implements the standard and the tests check it where they can.
+
+| Standard | Where | How strongly |
+| --- | --- | --- |
+| MOCA ([moca-spec](https://github.com/openmoca/moca-spec)) 0.7 | every package it writes, checked with the reference Reader | follow |
+| [Open Knowledge Format](https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/ad30107c31c06aec8a7d5636e0d1058118604e6f/SPEC.md) v0.2, pinned at commit `ad30107` | `content/`: each node an OKF concept document with a `type` | follow (pinned) |
+| [CommonMark](https://spec.commonmark.org/) | node bodies; text from input is escaped, link destinations percent-encoded | follow |
+| [YAML 1.2](https://yaml.org/spec/1.2.2/) | front matter, and OpenAPI documents in YAML | follow |
+| [SKOS](https://www.w3.org/TR/skos-reference/) and [Dublin Core terms](https://www.dublincore.org/specifications/dublin-core/dcmi-terms/) in [RDF 1.1 Turtle](https://www.w3.org/TR/turtle/) | `structure.ttl`; IRIs percent-encoded ([RFC 3987](https://www.rfc-editor.org/rfc/rfc3987)) | follow (the named terms) |
+| [RFC 3778](https://www.rfc-editor.org/rfc/rfc3778) `page=` fragments | PDF evidence | follow |
+| [Media Fragments](https://www.w3.org/TR/media-frags/) `t=` | YouTube evidence | follow |
+| [WebVTT](https://www.w3.org/TR/webvtt1/) | YouTube captions under `media/` | follow |
+| [OpenAPI 3.x](https://spec.openapis.org/oas/v3.1.0) | the `openapi` adapter's input; local `$ref` only | follow (the parts it reads) |
+| [WHATWG URL](https://url.spec.whatwg.org/) | URLs from input, parsed and rebuilt; `http` and `https` only | follow |
+| [BCP 47](https://www.rfc-editor.org/info/bcp47) | `--language`, and caption languages | follow |
+
+Built with the help of AI assistants; every change is reviewed and accepted by the maintainer.
+
 ## Licence
 
 Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).

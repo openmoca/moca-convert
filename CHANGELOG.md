@@ -14,6 +14,31 @@ All notable changes to @openmoca/moca-convert. The format follows [Keep a Change
 - A release workflow that publishes to npm on a version tag, through trusted
   publishing with provenance. No npm token is kept in the repository.
 
+### Changed (hardening)
+
+- Output is written to a folder beside `-o`, checked, and moved in; a
+  previous package is moved aside first and deleted last. `--force` replaces
+  only a previous package (a folder with `moca.json`).
+- `--log-file` is written on every exit, and records the adapter and timings.
+- Text from input is escaped or checked before it is written: PDF page labels
+  (one line, short, escaped); `pdfs.json` and YouTube capture URLs (parsed and
+  rebuilt, `http` and `https` only); YouTube video ids, upload dates and
+  caption languages (checked on read). File and folder names are
+  percent-encoded as IRI segments in `structure.ttl`.
+- PDFs are limited in size, pages and reading time; `--max-pdf-mb`,
+  `--max-pdf-pages` and `--pdf-timeout` raise the limits. A `pdfs.json` entry
+  must be a regular file inside the folder.
+- `moca-youtube` reads only YouTube URLs, passes the URL after `--`, checks
+  ids, runs yt-dlp with `--ignore-config`, and stops a run after 5 minutes.
+- Hidden files and folders in an input folder are not read. Obsidian
+  wikilinks are rewritten in the body only, and link targets are
+  percent-encoded.
+- OpenAPI: distinct file names for operations whose paths slug alike; schema
+  references expanded up to a budget; path-level and referenced parameters
+  listed.
+- CI runs against moca-spec and moca-reader-typescript at their
+  `release-0.7.0` heads.
+
 ### Fixed
 
 - The `youtube` adapter no longer rounds the end of the last time range up

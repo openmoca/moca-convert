@@ -73,7 +73,7 @@ test('a schema-invalid draft with --force leaves the previous package untouched,
   try {
     await assert.rejects(writeDraft({ draft: INVALID_DRAFT, outDir, force: true }), ConversionFailedError);
     assert.equal(readFileSync(join(outDir, 'existing.txt'), 'utf8'), 'pre-existing content\n');
-    assert.match(readFileSync(join(outDir, 'moca.json'), 'utf8'), /example.com\/old/);
+    assert.equal(JSON.parse(readFileSync(join(outDir, 'moca.json'), 'utf8')).id, 'https://example.com/old');
     assert.deepEqual(readdirSync(parent), ['pkg']);
   } finally {
     rmSync(parent, { recursive: true, force: true });
@@ -86,7 +86,7 @@ test('a valid draft with --force replaces a previous package, staged beside it, 
   try {
     await writeDraft({ draft: VALID_DRAFT, outDir, force: true, onLog: (l) => logged.push(l) });
     assert.equal(existsSync(join(outDir, 'existing.txt')), false);
-    assert.match(readFileSync(join(outDir, 'moca.json'), 'utf8'), /test\/write/);
+    assert.equal(JSON.parse(readFileSync(join(outDir, 'moca.json'), 'utf8')).id, VALID_DRAFT.manifest.id);
     assert.deepEqual(readdirSync(parent), ['pkg']);
     // Staged on the same file system as the output, never in the OS temp folder.
     assert.ok(logged.some((l) => l.startsWith(`reading ${parent}`)), logged.join('\n'));

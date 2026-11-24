@@ -170,7 +170,7 @@ implements the standard and the tests check it where they can.
 | Standard | Where | How strongly |
 | --- | --- | --- |
 | MOCA ([moca-spec](https://github.com/openmoca/moca-spec)) 0.7 | every package it writes, checked with the reference Reader | follow |
-| [Open Knowledge Format](https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/ad30107c31c06aec8a7d5636e0d1058118604e6f/SPEC.md) v0.2, pinned at commit `ad30107` | `content/`: each node an OKF concept document with a `type` | follow (pinned) |
+| [Open Knowledge Format](https://github.com/open-knowledge-format/open-knowledge-format/blob/ad30107c31c06aec8a7d5636e0d1058118604e6f/SPEC.md) v0.2, pinned at commit `ad30107` | `content/`: each node an OKF concept document with a `type` | follow (pinned) |
 | [CommonMark](https://spec.commonmark.org/) | node bodies; text from input is escaped, link destinations percent-encoded | follow |
 | [YAML 1.2](https://yaml.org/spec/1.2.2/) | front matter, and OpenAPI documents in YAML | follow |
 | [SKOS](https://www.w3.org/TR/skos-reference/) and [Dublin Core terms](https://www.dublincore.org/specifications/dublin-core/dcmi-terms/) in [RDF 1.1 Turtle](https://www.w3.org/TR/turtle/) | `structure.ttl`; IRIs percent-encoded ([RFC 3987](https://www.rfc-editor.org/rfc/rfc3987)) | follow (the named terms) |
